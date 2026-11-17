@@ -1,0 +1,38 @@
+server:
+  port: ${SERVER_PORT:8082}
+
+spring:
+  application:
+    name: ms-premios
+  datasource:
+    url: ${DB_PREMIOS_URL:jdbc:postgresql://localhost:5433/db_premios}
+    username: ${DB_PREMIOS_USER:postgres}
+    password: ${DB_PREMIOS_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    defer-datasource-initialization: true
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+  sql:
+    init:
+      mode: always
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:1025}
+    from: no-reply@peluqueria.utn.edu.ar
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${KEYCLOAK_JWKS_URI:http://localhost:8085/realms/peluqueria-realm/protocol/openid-connect/certs}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+

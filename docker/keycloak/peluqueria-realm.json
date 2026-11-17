@@ -1,0 +1,64 @@
+{
+  "realm": "peluqueria-realm",
+  "enabled": true,
+  "roles": {
+    "realm": [
+      {
+        "name": "ROLE_CLIENTE",
+        "description": "Cliente de la peluquería que reserva turnos y canjea puntos"
+      },
+      {
+        "name": "ROLE_ADMIN",
+        "description": "Administrador / Peluquero que gestiona el catálogo y completa turnos"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "peluqueria-client",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "redirectUris": ["*"],
+      "webOrigins": ["*"]
+    }
+  ],
+  "users": [
+    {
+      "id": "11111111-1111-1111-1111-111111111111",
+      "username": "cliente1",
+      "email": "cliente1@peluqueria.com",
+      "firstName": "Juan",
+      "lastName": "Cliente",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "cliente123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["ROLE_CLIENTE"]
+    },
+    {
+      "id": "22222222-2222-2222-2222-222222222222",
+      "username": "admin1",
+      "email": "admin1@peluqueria.com",
+      "firstName": "Carlos",
+      "lastName": "Encargado",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["ROLE_ADMIN"]
+    }
+  ]
+}
+

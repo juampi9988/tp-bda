@@ -1,0 +1,600 @@
+{
+  "info": {
+    "_postman_id": "b8c04e8e-2026-4b1a-9a55-peluqueria2026",
+    "name": "TPI Peluquería y Fidelización 2026",
+    "description": "Colección completa, parametrizada y reproducible para evaluar el TPI de Backend de Aplicaciones (UTN FRC).\n\nCubre:\n1. Autenticación OIDC/JWT contra Keycloak (guardado automático de tokens).\n2. Control de acceso y seguridad (401 y 403).\n3. Flujo de negocio central extremo a extremo (reserva, completitud con acreditación, reserva con canje de descuento y cancelación con reintegro).\n4. Reglas de negocio y rechazos controlados (RN-01, RN-02, RN-03, RN-04 y 503).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Autenticación Keycloak (OIDC / JWT)",
+      "description": "Obtiene los tokens JWT para ROLE_CLIENTE y ROLE_ADMIN y los almacena automáticamente en las variables de entorno {{token_cliente}} y {{token_admin}}.",
+      "item": [
+        {
+          "name": "1.1 Login Cliente (ROLE_CLIENTE)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Login Cliente exitoso (200 OK)', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const jsonData = pm.response.json();",
+                  "pm.collectionVariables.set('token_cliente', jsonData.access_token);",
+                  "pm.environment.set('token_cliente', jsonData.access_token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "client_id", "value": "peluqueria-client", "type": "text" },
+                { "key": "grant_type", "value": "password", "type": "text" },
+                { "key": "username", "value": "cliente1", "type": "text" },
+                { "key": "password", "value": "cliente123", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{keycloak_url}}/realms/peluqueria-realm/protocol/openid-connect/token",
+              "host": ["{{keycloak_url}}"],
+              "path": ["realms", "peluqueria-realm", "protocol", "openid-connect", "token"]
+            }
+          }
+        },
+        {
+          "name": "1.2 Login Administrador (ROLE_ADMIN)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Login Admin exitoso (200 OK)', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const jsonData = pm.response.json();",
+                  "pm.collectionVariables.set('token_admin', jsonData.access_token);",
+                  "pm.environment.set('token_admin', jsonData.access_token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "client_id", "value": "peluqueria-client", "type": "text" },
+                { "key": "grant_type", "value": "password", "type": "text" },
+                { "key": "username", "value": "admin1", "type": "text" },
+                { "key": "password", "value": "admin123", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{keycloak_url}}/realms/peluqueria-realm/protocol/openid-connect/token",
+              "host": ["{{keycloak_url}}"],
+              "path": ["realms", "peluqueria-realm", "protocol", "openid-connect", "token"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Seguridad y Control de Acceso",
+      "description": "Demuestra el comportamiento ante solicitudes sin token (401 Unauthorized) y con permisos insuficientes según el rol (403 Forbidden).",
+      "item": [
+        {
+          "name": "2.1 Solicitud Sin Token -> 401 Unauthorized",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Rechaza petición sin credenciales con 401 Unauthorized', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/peluqueros",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "peluqueros"]
+            }
+          }
+        },
+        {
+          "name": "2.2 ROLE_CLIENTE intenta crear Peluquero -> 403 Forbidden",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Rechaza a ROLE_CLIENTE en endpoint exclusivo de ADMIN con 403 Forbidden', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token_cliente}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Peluquero No Autorizado\",\n  \"emailCalendar\": \"noautorizado@peluqueria.com\",\n  \"activo\": true\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/peluqueros",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "peluqueros"]
+            }
+          }
+        },
+        {
+          "name": "2.3 ROLE_CLIENTE intenta crear Premio -> 403 Forbidden",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Rechaza a ROLE_CLIENTE al administrar catálogo de premios con 403 Forbidden', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token_cliente}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Premio Intruso\",\n  \"puntosRequeridos\": 10,\n  \"porcentajeDescuento\": 90.00,\n  \"activo\": true\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/premios",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "premios"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Flujo Principal del MVP de Punta a Punta",
+      "description": "Recorre el proceso central de negocio:\n1. Consulta de catálogos.\n2. Reserva de turno sin canje.\n3. Completar turno (ADMIN) y acreditación automática de +100 puntos en ms-premios.\n4. Consulta de saldo e historial en ms-premios.\n5. Reserva de nuevo turno canjeando premio #1 (10% de descuento por 100 puntos).\n6. Cancelación del turno con premio y reintegro automático de los 100 puntos.",
+      "item": [
+        {
+          "name": "3.1 Consultar Peluqueros Disponibles (GET)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Devuelve catálogo de peluqueros (200 OK)', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().length).to.be.above(0);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token_cliente}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/peluqueros",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "peluqueros"]
+            }
+          }
+        },
+        {
+          "name": "3.2 Consultar Servicios Disponibles (GET)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Devuelve catálogo de servicios (200 OK)', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token_cliente}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/servicios",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "servicios"]
+            }
+          }
+        },
+        {
+          "name": "3.3 Consultar Catálogo de Premios (GET)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Devuelve catálogo de premios de ms-premios (200 OK)', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token_cliente}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/premios",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "premios"]
+            }
+          }
+        },
+        {
+          "name": "3.4 Reservar Turno #1 (Sin Canje) -> 201 Created",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Turno #1 reservado en estado RESERVADO (201 Created)', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "    const data = pm.response.json();",
+                  "    pm.expect(data.estado).to.eql('RESERVADO');",
+                  "    pm.collectionVariables.set('turno_id_1', data.id);",
+                  "    pm.environment.set('turno_id_1', data.id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token_cliente}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"peluqueroId\": 1,\n  \"servicioId\": 1,\n  \"fechaHoraInicio\": \"2027-05-10T10:00:00\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/turnos",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "turnos"]
+            }
+          }
+        },
+        {
+          "name": "3.5 Completar Turno #1 (ADMIN) y Acreditar +100 Puntos -> 200 OK",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Turno #1 pasa a COMPLETADO y acredita puntos en ms-premios (200 OK)', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().estado).to.eql('COMPLETADO');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token_admin}}", "type": "string" }]
+            },
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/turnos/{{turno_id_1}}/completar",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "turnos", "{{turno_id_1}}", "completar"]
+            }
+          }
+        },
+        {
+          "name": "3.6 Consultar Mi Cuenta de Puntos (Verifica +100 Puntos Acreditados)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Saldo de puntos incrementado tras completar turno (200 OK)', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const cuenta = pm.response.json();",
+                  "    pm.expect(cuenta.saldoPuntos).to.be.at.least(100);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token_cliente}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/premios/mi-cuenta",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "premios", "mi-cuenta"]
+            }
+          }
+        },
+        {
+          "name": "3.7 Reservar Turno #2 Canjeando Premio #1 (10% Descuento) -> 201 Created",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Turno #2 reservado con 10% de descuento aplicado al precioFinal (201 Created)', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "    const data = pm.response.json();",
+                  "    pm.expect(data.porcentajeDescuentoAplicado).to.eql(10.0);",
+                  "    pm.expect(data.precioFinal).to.eql(10800.0);",
+                  "    pm.collectionVariables.set('turno_id_2', data.id);",
+                  "    pm.environment.set('turno_id_2', data.id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token_cliente}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"peluqueroId\": 1,\n  \"servicioId\": 1,\n  \"fechaHoraInicio\": \"2027-05-11T15:00:00\",\n  \"premioId\": 1\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/turnos",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "turnos"]
+            }
+          }
+        },
+        {
+          "name": "3.8 Cancelar Turno #2 y Reintegrar Puntos (RN-05) -> 200 OK",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Turno #2 pasa a CANCELADO y reintegra los 100 puntos en ms-premios (200 OK)', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().estado).to.eql('CANCELADO');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token_cliente}}", "type": "string" }]
+            },
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/turnos/{{turno_id_2}}/cancelar",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "turnos", "{{turno_id_2}}", "cancelar"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Reglas de Negocio y Rechazos Controlados",
+      "description": "Verifica las validaciones del dominio y las respuestas de error esperadas (400, 409, 422).",
+      "item": [
+        {
+          "name": "4.1 RN-01: Reserva Fuera de Franja Laboral (21:30 hs) -> 400 Bad Request",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('RN-01: Rechaza turno fuera de horario laboral (09:00 a 20:00) con 400 Bad Request', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token_cliente}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"peluqueroId\": 1,\n  \"servicioId\": 1,\n  \"fechaHoraInicio\": \"2027-05-12T21:30:00\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/turnos",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "turnos"]
+            }
+          }
+        },
+        {
+          "name": "4.2 RN-02: Bloque Ocupado en Google Calendar (Walk-in 13:30 hs) -> 409 Conflict",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('RN-02: Rechaza turno cuando Google Calendar informa compromiso externo (409 Conflict)', function () {",
+                  "    pm.response.to.have.status(409);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token_cliente}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"peluqueroId\": 1,\n  \"servicioId\": 1,\n  \"fechaHoraInicio\": \"2027-05-12T13:30:00\"\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/turnos",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "turnos"]
+            }
+          }
+        },
+        {
+          "name": "4.3 RN-03: Canje con Saldo Insuficiente (Premio #3 de 500 pts) -> 422 Unprocessable Entity",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('RN-03: Rechaza reserva cuando el saldo de puntos es insuficiente (422 Unprocessable Entity)', function () {",
+                  "    pm.response.to.have.status(422);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token_cliente}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"peluqueroId\": 1,\n  \"servicioId\": 1,\n  \"fechaHoraInicio\": \"2027-05-14T11:00:00\",\n  \"premioId\": 3\n}"
+            },
+            "url": {
+              "raw": "{{gateway_url}}/api/turnos",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "turnos"]
+            }
+          }
+        },
+        {
+          "name": "4.4 RN-04: Intentar Completar un Turno Ya Completado -> 409 Conflict",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('RN-04: Impide completar dos veces el mismo turno para evitar doble acreditación (409 Conflict)', function () {",
+                  "    pm.response.to.have.status(409);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{token_admin}}", "type": "string" }]
+            },
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{gateway_url}}/api/turnos/{{turno_id_1}}/completar",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "turnos", "{{turno_id_1}}", "completar"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "gateway_url", "value": "http://localhost:8080" },
+    { "key": "keycloak_url", "value": "http://localhost:8085" },
+    { "key": "token_cliente", "value": "" },
+    { "key": "token_admin", "value": "" },
+    { "key": "turno_id_1", "value": "1" },
+    { "key": "turno_id_2", "value": "2" }
+  ]
+}
+

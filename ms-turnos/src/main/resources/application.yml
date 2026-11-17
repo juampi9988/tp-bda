@@ -1,0 +1,51 @@
+server:
+  port: ${SERVER_PORT:8081}
+
+spring:
+  application:
+    name: ms-turnos
+  datasource:
+    url: ${DB_TURNOS_URL:jdbc:postgresql://localhost:5432/db_turnos}
+    username: ${DB_TURNOS_USER:postgres}
+    password: ${DB_TURNOS_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    defer-datasource-initialization: true
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+  sql:
+    init:
+      mode: always
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:1025}
+    from: no-reply@peluqueria.utn.edu.ar
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${KEYCLOAK_JWKS_URI:http://localhost:8085/realms/peluqueria-realm/protocol/openid-connect/certs}
+
+# ====== Integración con la API de Google =======
+
+integraciones:
+  http:
+    connect-timeout-ms: ${HTTP_CONNECT_TIMEOUT_MS:3000}
+    read-timeout-ms: ${HTTP_READ_TIMEOUT_MS:4000}
+  ms-premios:
+    base-url: ${MS_PREMIOS_URI:http://localhost:8082}
+  google-calendar:
+    base-url: ${GOOGLE_CALENDAR_BASE_URL:https://www.googleapis.com/calendar/v3}
+    access-token: ${GOOGLE_CALENDAR_ACCESS_TOKEN:}
+    timezone: America/Argentina/Cordoba
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+

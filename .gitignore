@@ -1,0 +1,26 @@
+# Compilados de Maven y Java
+target/
+*.class
+*.jar
+*.war
+*.ear
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+
+# Entorno y credenciales privadas (SEG-01: secretos fuera del código)
+.env
+*credentials*.json
+*service-account*.json
+
+# Logs y temporales
+*.log
+pgdata*/
+

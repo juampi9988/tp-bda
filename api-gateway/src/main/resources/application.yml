@@ -1,0 +1,29 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: api-gateway
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${KEYCLOAK_JWKS_URI:http://localhost:8085/realms/peluqueria-realm/protocol/openid-connect/certs}
+  cloud:
+    gateway:
+      routes:
+        - id: ms-turnos-route
+          uri: ${MS_TURNOS_URI:http://localhost:8081} # Se manda derecho al ms-turnos...
+          predicates:
+            - Path=/api/turnos/**, /api/peluqueros/**, /api/servicios/** # ... si la direccion comienza con
+        - id: ms-premios-route
+          uri: ${MS_PREMIOS_URI:http://localhost:8082} # Se manda derecho al ms-premios...
+          predicates:
+            - Path=/api/premios/**                   # ... si la direccion comienza con
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+

@@ -1,0 +1,135 @@
+services:
+  db-turnos:
+    image: postgres:16-alpine
+    container_name: peluqueria-db-turnos
+    environment:
+      POSTGRES_DB: db_turnos
+      POSTGRES_USER: ${DB_TURNOS_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_TURNOS_PASSWORD:-postgres}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata_turnos:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d db_turnos"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - peluqueria-net
+
+  db-premios:
+    image: postgres:16-alpine
+    container_name: peluqueria-db-premios
+    environment:
+      POSTGRES_DB: db_premios
+      POSTGRES_USER: ${DB_PREMIOS_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PREMIOS_PASSWORD:-postgres}
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata_premios:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d db_premios"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - peluqueria-net
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: peluqueria-mailpit
+    ports:
+      - "1025:1025" # Servidor SMTP
+      - "8025:8025" # Bandeja web para verificar emails enviados (RN-06)
+    networks:
+      - peluqueria-net
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0
+    container_name: peluqueria-keycloak
+    command: start-dev --import-realm
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+    ports:
+      - "8085:8080"
+    volumes:
+      - ./docker/keycloak/peluqueria-realm.json:/opt/keycloak/data/import/peluqueria-realm.json:ro
+    networks:
+      - peluqueria-net
+
+  ms-premios:
+    build:
+      context: ./ms-premios
+    container_name: peluqueria-ms-premios
+    environment:
+      SERVER_PORT: 8082
+      DB_PREMIOS_URL: jdbc:postgresql://db-premios:5432/db_premios
+      DB_PREMIOS_USER: ${DB_PREMIOS_USER:-postgres}
+      DB_PREMIOS_PASSWORD: ${DB_PREMIOS_PASSWORD:-postgres}
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      KEYCLOAK_JWKS_URI: http://keycloak:8080/realms/peluqueria-realm/protocol/openid-connect/certs
+    ports:
+      - "8082:8082"
+    depends_on:
+      db-premios:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    networks:
+      - peluqueria-net
+
+  ms-turnos:
+    build:
+      context: ./ms-turnos
+    container_name: peluqueria-ms-turnos
+    environment:
+      SERVER_PORT: 8081
+      DB_TURNOS_URL: jdbc:postgresql://db-turnos:5432/db_turnos
+      DB_TURNOS_USER: ${DB_TURNOS_USER:-postgres}
+      DB_TURNOS_PASSWORD: ${DB_TURNOS_PASSWORD:-postgres}
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      MS_PREMIOS_URI: http://ms-premios:8082
+      KEYCLOAK_JWKS_URI: http://keycloak:8080/realms/peluqueria-realm/protocol/openid-connect/certs
+      GOOGLE_CALENDAR_ACCESS_TOKEN: ${GOOGLE_CALENDAR_ACCESS_TOKEN:-}
+
+    ports:
+      - "8081:8081"
+    depends_on:
+      db-turnos:
+        condition: service_healthy
+      ms-premios:
+        condition: service_started
+    networks:
+      - peluqueria-net
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+    container_name: peluqueria-api-gateway
+    environment:
+      SERVER_PORT: 8080
+      MS_TURNOS_URI: http://ms-turnos:8081
+      MS_PREMIOS_URI: http://ms-premios:8082
+      KEYCLOAK_JWKS_URI: http://keycloak:8080/realms/peluqueria-realm/protocol/openid-connect/certs
+    ports:
+      - "8080:8080"
+    depends_on:
+      - ms-turnos
+      - ms-premios
+      - keycloak
+    networks:
+      - peluqueria-net
+
+volumes:
+  pgdata_turnos:
+  pgdata_premios:
+
+networks:
+  peluqueria-net:
+    driver: bridge
+
